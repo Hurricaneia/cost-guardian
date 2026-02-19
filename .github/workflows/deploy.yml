@@ -34,7 +34,7 @@ jobs:
         run: terraform -chdir=infra/envs/dev validate
 
       - name: Terraform Plan
-        run: terraform -chdir=infra/envs/dev plan input=false
+        run: terraform -chdir=infra/envs/dev plan -input=false
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
