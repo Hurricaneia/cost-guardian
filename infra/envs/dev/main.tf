@@ -29,6 +29,22 @@ resource "aws_s3_bucket" "reports" {
   bucket = "${local.project_name}-reports-${random_id.suffix.hex}"
 }
 
+
+resource "aws_s3_bucket_lifecycle_configuration" "reports_lifecycle" {
+    bucket = aws_s3_bucket.reports.id
+
+    rule {
+        id = "expire-old-reports"
+        status = "Enabled"
+
+        expiration {
+            days = 30
+        }
+
+        filter {}
+    }
+}
+
 resource "aws_s3_bucket_public_access_block" "reports" {
   bucket                  = aws_s3_bucket.reports.id
   block_public_acls       = true
@@ -262,8 +278,72 @@ resource "aws_iam_role" "github_actions_role" {
 # GITHUB IAM POLICY
 ###############################
 
-resource "aws_iam_role_policy_attachment" "github_admin" {
+resource "aws_iam_role_policy_attachment" "github_custom_attach" {
   role       = aws_iam_role.github_actions_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  policy_arn = aws_iam_policy.github_terraform_policy.arn
+}
+resource "aws_iam_policy" "github_terraform_policy" {
+    name = "cost-guardian-github-terraform-policy"
+
+    policy = jsonencode ({
+        Version = "2012-10-17"
+        Statement = [
+            {
+                Effect = "Allow",
+                Action = [
+                    "lambda:*",
+                    "iam:*",
+                    "s3:*",
+                    "dynamodb:*",
+                    "kms:*",
+                    "events:*",
+                    "ssm:*",
+                    "logs:*"
+                ]
+                Resource = "*"
+            }
+        ]
+    })
 }
 
+###############################
+# TERRAFORM REMOTE
+###############################
+
+resource "aws_s3_bucket" "tf_state" {
+    bucket = "cost-guardian-tf-state-894943009636"
+
+    lifecycle {
+        prevent_destroy = true
+    }
+}
+
+resource "aws_s3_bucket_versioning" "tf_state_versioning" {
+    bucket = aws_s3_bucket.tf_state.id
+
+    versioning_configuration {
+        status = "Enabled"
+    }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "tf_state_encryption" {
+    bucket = aws_s3_bucket.tf_state.id
+
+    rule {
+        apply_server_side_encryption_by_default {
+            sse_algorithm = "AES256"
+
+        }
+    }
+}
+
+resource "aws_dynamodb_table" "tf_lock" {
+    name = "cost-guardian-tf-lock"
+    billing_mode = "PAY_PER_REQUEST"
+    hash_key = "LockID"
+
+    attribute {
+        name = "LockID"
+        type = "S"
+    }
+}
