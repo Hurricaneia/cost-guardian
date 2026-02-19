@@ -12,6 +12,12 @@ crash.log
 # macOS
 .DS_Store
 
+#Lambda build artifacts
+infra/envs/dev/lambda.zip
+
+# local testing output
+response.json
+
 # Env files
 .env
 
