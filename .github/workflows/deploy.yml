@@ -18,6 +18,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Build Lambda package
+        run: |
+          cd src
+          zip -r ../infra/envs/dev/lambda.zip .
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -37,4 +42,5 @@ jobs:
         run: terraform -chdir=infra/envs/dev plan -input=false
         env:
           TF_VAR_slack_webhook_url: ${{ secrets.TF_VAR_slack_webhook_url }}
+     
 
